@@ -229,7 +229,8 @@
               Create <input id="fieldCount" type="number" name="quantity" min="1" max="100" > Appointments
             </p>
             <p>
-              <input type="radio" id="fieldUntilOption" name="fieldOptionEndRange" /> Repeat until <input id="fieldUntil" type="datetime-local" />
+              <input type="radio" id="fieldUntilOption" name="fieldOptionEndRange" /> Repeat until 
+              <input id="fieldUntil" type="date" />
             </p>
           </div>
         </div>
@@ -323,6 +324,7 @@
         const changeReccurendSlot = (val) => {
           if (val == 'custom') {
             this.set('formVisibility' , '');
+            this.$.fieldReccurend.value = 'daily';
             this.changeReccurendType('daily');
           } else {
             this.set('formVisibility' , 'hidden');
@@ -332,7 +334,8 @@
 
         this.reccurend.addEventListener('change', (e) => {
           changeReccurendSlot(e.target.value);
-        })
+        });
+        this.$.fieldReccurend.value = 'daily';
         changeReccurendSlot(this.reccurend.value);
 
         this.$.fieldReccurend.addEventListener('change', (e) => {
@@ -342,10 +345,12 @@
 
         this.$.closeModal.addEventListener('click', (e) => {
           this.set('formVisibility', 'hidden');
+          this.reccurend.blur();
         });
 
         this.$.fieldOk.addEventListener('click', (e) => {
           this.set('formVisibility', 'hidden');
+          this.reccurend.blur();
         });
 
         [
@@ -513,6 +518,7 @@
       }
 
       changeReccurendType(type) {
+
         if (type == 'daily') {
           this.set('formDayVisibility', '');
         } else {
