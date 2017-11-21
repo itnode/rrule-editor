@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+
+    <title>rrule-editor demo</title>
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+
+    <link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
+    <link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
+    <link rel="import" href="../rrule-editor.html">
+
+    <custom-style>
+      <style is="custom-style" include="demo-pages-shared-styles">
+      </style>
+    </custom-style>
+  </head>
+  <body>
+    <div class="vertical-section-container centered">
+      <h3>Basic rrule-editor demo</h3>
+      <rrule-editor>
+          Event Date: <input data-id="date" type="date" name="begin" />
+          <br />
+          <br />
+          Recurring:
+
+          <select name="reccurend" data-id="date-reccurend">
+            <option value="no">No</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+            <option value="custom">Custom</option>
+          </select>
+          <br />
+          <br />
+          Hidden text <input type="text" data-id="date-hidden"  name="rrule" value="" />
+          <br />
+          <br />
+          <span data-id="date-reccurend-txt"></span>
+          <br />
+      </rrule-editor>
+    </div>
+  </body>
+</html>

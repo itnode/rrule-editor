@@ -1,0 +1,562 @@
+<link rel="import" href="../polymer/polymer-element.html">
+<link rel="import" href="../pf-calendar/pf-calendar.html">
+<script type="text/javascript" src="../rrule/lib/rrule.js" charset="utf-8"></script>
+<script type="text/javascript" src="../rrule/lib/nlp.js" charset="utf-8"></script>
+
+<dom-module id="rrule-editor">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+
+      :host .hidden {
+        display: none;
+      }
+
+      :host .modal {
+          position: fixed;
+          z-index: 1;
+          padding-top: 50px;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          overflow: auto;
+          background-color: rgb(0,0,0);
+          background-color: rgba(0,0,0,0.4);
+      }
+
+      :host .modal-content {
+          background-color: #fefefe;
+          margin: auto;
+          padding: 20px;
+          border: 1px solid #888;
+          width: 80%;
+      }
+
+      :host .close {
+          color: #aaaaaa;
+          float: right;
+          font-size: 28px;
+          font-weight: bold;
+      }
+
+      :host .close:hover,
+      :host .close:focus {
+          color: #000;
+          text-decoration: none;
+          cursor: pointer;
+      }
+
+      :host .badge {
+          background-color: #0275d8;
+          display: inline-block;
+          padding: .25em .4em;
+          font-size: 80%;
+          font-weight: 700;
+          line-height: 1;
+          color: #fff;
+          text-align: center;
+          white-space: nowrap;
+          vertical-align: baseline;
+          border-radius: .25rem;
+          margin-right: .25em;
+          margin-bottom: .25em;
+      }
+    </style>
+    <slot></slot>
+
+    <div class$="{{formVisibility}}">
+      <div class="modal">
+        <div class="modal-content">
+        <span id="closeModal" class="close">&times;</span>
+        <h4>Recurrence pattern</h4>
+        <div class="field-group row">
+          <label class="col-2 field-label">Repeat</label>
+          <div class="field-cell">
+            <select id="fieldReccurend">
+              <option value="daily" selected>Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+            <div class$="{{formDayVisibility}}">
+              <p>
+                <input id="fieldDailyOption" name="fieldDailyOption" value="daily" type="radio" checked /> Every
+                <input id="fieldDailyInterval" type="number" name="quantity" min="1" value="1"> Day(s)
+              </p>
+              <p>
+                <input id="fieldDailyOption2" name="fieldDailyOption" value="weekday" type="radio" /> Every weekday
+              </p>
+            </div>
+
+            <div class$="{{formWeekVisibility}}">
+              <p>
+                Every <input id="fieldWeeklyInterval" type="number" name="quantity"  min="1" value="1"> Week(s)
+              </p>
+              <p>
+                On:
+                <span><input type="checkbox" id="fieldWeeklyOnSun" /> Sun </span>
+                <span><input type="checkbox" id="fieldWeeklyOnMon" /> Mon </span>
+                <span><input type="checkbox" id="fieldWeeklyOnTue" /> Tue </span>
+                <span><input type="checkbox" id="fieldWeeklyOnWed" /> Wed </span>
+                <span><input type="checkbox" id="fieldWeeklyOnThu" /> Thu </span>
+                <span><input type="checkbox" id="fieldWeeklyOnFri" /> Fri </span>
+                <span><input type="checkbox" id="fieldWeeklyOnSat" /> Sat </span>
+              </p>
+            </div>
+
+            <div class$="{{formMonthVisibility}}">
+              <p>
+                Every <input id="fieldMonthlyInterval"  type="number" name="quantity" min="1" value="1" > Month(s)
+              </p>
+              <!--
+              <p>
+                <label for="fieldYearlyOption">
+                  <input id="fieldMonthlyOption" type="radio" value="every" name="fieldMonthlyOption" checked />
+                  <select>
+                    <option>Every</option>
+                    <option>The First</option>
+                    <option>The Second</option>
+                    <option>The Third</option>
+                    <option>The Fourth</option>
+                    <option>The Fifth</option>
+                    <option>The Last</option>
+                  </select>
+
+                  <select>
+                    <option>Sunday</option>
+                    <option>Monday</option>
+                    <option>Tuesday</option>
+                    <option>Wednesday</option>
+                    <option>Thurday</option>
+                    <option>Friday</option>
+                    <option>Saturday</option>
+                    <option>Day of month</option>
+                  </select>
+                </label>
+              </p>
+              -->
+              <p>
+                <label for="fieldYearlyOption2">
+                  <input id="fieldMonthlyOption2" type="radio" value="ondays" name="fieldMonthlyOption" checked /> Recur on day(s)
+                  <select id="fieldMonthlyMonthDays" multiple>
+                    <template is="dom-repeat" items="{{monthDays}}" as="type" >
+                      <option>{{type}}</option>
+                    </template>
+                    <option>Last day</option>
+                  </select>
+                </label>
+              </p>
+            </div>
+
+            <div class$="{{ formYearVisibility }}">
+              <p>
+                Every: <input id="fieldYearlyInterval" type="number" name="quantity" min="1" value="1"> Years(s)
+              </p>
+              <p>
+                <input type="radio" id="fieldYearlyOption"  name="fieldYearlyOption" checked />
+                <label for="fieldYearlyOption">
+                  Every <input id="fieldYearlyEveryDay" type="number" name="quantity" min="1" value="1"> of
+                  <select id="fieldYearlyEveryMonth">
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                  </select>
+                </label>
+              </p>
+              <p>
+                <input type="radio" id="fieldYearlyWeeklyOption"  name="fieldYearlyOption"  />
+                <label for="fieldYearlyWeeklyOption">
+                <select>
+                  <option>Every</option>
+                  <option>The First</option>
+                  <option>The Second</option>
+                  <option>The Third</option>
+                  <option>The Fourth</option>
+                  <option>The Fifth</option>
+                  <option>The Last</option>
+                </select>
+
+                <select id="fieldYearlyWeeklyWkst">
+                  <option value="SU">Sunday</option>
+                  <option value="MO">Monday</option>
+                  <option value="TU">Tuesday</option>
+                  <option value="WE">Wednesday</option>
+                  <option value="TH">Thurday</option>
+                  <option value="FR">Friday</option>
+                  <option value="SA">Saturday</option>
+                </select> of
+
+                <select  id="fieldYearlyWeeklyByMonth">
+                  <option value="1">January</option>
+                  <option value="2">February</option>
+                  <option value="3">March</option>
+                  <option value="4">April</option>
+                  <option value="5">May</option>
+                  <option value="6">June</option>
+                  <option value="7">July</option>
+                  <option value="8">August</option>
+                  <option value="9">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+                </label>
+            </div>
+          </div>
+        </div>
+
+        <h4>Range of 10 recurrence</h4>
+        <div class="field-group row">
+          <label class="col-2 field-label">End date</label>
+          <div class="field-cell">
+            <p>
+              <input type="radio" id="fieldNoEndOption" name="fieldOptionEndRange" checked /> No end date
+            </p>
+            <p>
+              <input type="radio" id="fieldAppointmentsOption"  name="fieldOptionEndRange" />
+              Create <input id="fieldCount" type="number" name="quantity" min="1" max="100" > Appointments
+            </p>
+            <p>
+              <input type="radio" id="fieldUntilOption" name="fieldOptionEndRange" /> Repeat until <input id="fieldUntil" type="datetime-local" />
+            </p>
+          </div>
+        </div>
+
+        <h4>Preview</h4>
+        <template is="dom-if" if="{{_isDev()}}">          
+          <p>{{ rruleTxt }} </p>
+          <p>{{ rruleHumanTxt }} </p>
+        </template>
+
+        <p>Preview of next 10 occurance :
+          <div>
+            <template is="dom-repeat" items="{{rruleAll}}">
+              <div class="badge">{{ item }}</div>
+            </template>
+          </div>
+        </p>
+
+        <p><button id="fieldOk">Ok</button></p>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    /**
+     * `rrule-editor`
+     * recurrence rules for calendar dates
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class RruleEditor extends Polymer.Element {
+      static get is() { return 'rrule-editor'; }
+      static get properties() {
+        return {
+          formVisibility: {
+            type: String,
+            value: 'hidden'
+          }
+        };
+      }
+
+      constructor() {
+        super();
+
+        this.env = '';
+        this.monthDays = Array(31).fill(1).map((a, i) => i+1)
+        this.formDayVisibility = 'hidden';
+        this.formWeekVisibility = 'hidden';
+        this.formMonthVisibility = 'hidden';
+        this.formYearVisibility = 'hidden';
+
+        this.type = 'daily';
+        this.rruleAll = [];
+        this.rruleTxt = '';
+        this.rruleHumanTxt = '@@';
+      }
+
+      _isDev() {
+        return this.env == 'DEV';
+      }
+
+      connectedCallback() {
+        super.connectedCallback();
+        let effectiveChildren = Polymer.FlattenedNodesObserver
+          .getFlattenedNodes(this)
+          .filter(n => n.nodeType === Node.ELEMENT_NODE)
+
+        this.initSlotInputs(effectiveChildren);
+        this.initSlotEvents();
+      }
+
+      initSlotEvents() {
+        if (
+          !(
+            this.date
+            && this.dateHidden
+            && this.reccurend
+            && this.reccurendTxt
+          )
+        ) {
+          console.info("Slot input not found!")
+          return;
+        }
+
+        this.date.addEventListener('change', (e) => {
+          this.changeAnything();
+        });
+
+        const changeReccurendSlot = (val) => {
+          if (val == 'custom') {
+            this.set('formVisibility' , '');
+            this.changeReccurendType('daily');
+          } else {
+            this.set('formVisibility' , 'hidden');
+          }
+          this.changeAnything();
+        }
+
+        this.reccurend.addEventListener('change', (e) => {
+          changeReccurendSlot(e.target.value);
+        })
+        changeReccurendSlot(this.reccurend.value);
+
+        this.$.fieldReccurend.addEventListener('change', (e) => {
+          this.changeReccurendType(e.target.value);
+          this.changeAnything();
+        });
+
+        this.$.closeModal.addEventListener('click', (e) => {
+          this.set('formVisibility', 'hidden');
+        });
+
+        this.$.fieldOk.addEventListener('click', (e) => {
+          this.set('formVisibility', 'hidden');
+        });
+
+        [
+          'fieldDailyInterval',
+          'fieldDailyOption',
+          'fieldDailyOption2',
+          'fieldWeeklyInterval',
+          'fieldWeeklyOnSun',
+          'fieldWeeklyOnMon',
+          'fieldWeeklyOnTue',
+          'fieldWeeklyOnWed',
+          'fieldWeeklyOnThu',
+          'fieldWeeklyOnFri',
+          'fieldWeeklyOnSat',
+          'fieldMonthlyInterval',
+          // 'fieldMonthlyOption',
+          'fieldMonthlyOption2',
+          'fieldYearlyInterval',
+          'fieldMonthlyMonthDays',
+          'fieldYearlyOption',
+          'fieldYearlyWeeklyOption',
+          'fieldYearlyEveryDay',
+          'fieldYearlyEveryMonth',
+          'fieldYearlyWeeklyWkst',
+          'fieldYearlyWeeklyByMonth',
+          'fieldNoEndOption',
+          'fieldAppointmentsOption',
+          'fieldUntilOption',
+          'fieldUntil',
+          'fieldCount'
+        ].forEach((str) => {
+          this.$[str].addEventListener('change', (e) => {
+            this.changeAnything();
+          });
+        })
+
+        this.changeAnything()
+      }
+
+      changeNonCustom() {
+        // If no value is selected
+        if (this.reccurend.value === 'no') {
+          this.dateHidden.value = '';
+          this.reccurendTxt.innerHTML = '';
+          return;
+        }
+
+        const ruleOptions = {};
+        ruleOptions.freq = RRule[this.reccurend.value.toUpperCase()];
+        ruleOptions.dtstart = this.date.value ? new Date(this.date.value) : new Date();
+
+        const rule = new RRule(ruleOptions)
+        this.dateHidden.value = rule.toString();
+        this.reccurendTxt.innerHTML = rule.toText();
+      }
+
+      changeAnything() {
+        if (this.reccurend.value !== 'custom') {
+          return this.changeNonCustom();
+        }
+
+        const ruleOptions = {};
+        ruleOptions.freq = RRule[this.type.toUpperCase()];
+        ruleOptions.dtstart = this.date.value ? new Date(this.date.value) : new Date();
+
+        // For daily option
+        if (ruleOptions.freq == RRule.DAILY) {
+          // console.log(this.querySelector('input[name="fieldDailyOption"]:checked'));
+          if (this.$.fieldDailyOption.checked) {
+            const dailyInterval = +this.$.fieldDailyInterval.value || 1;
+            if (dailyInterval > 1) {
+              ruleOptions.interval = dailyInterval;
+            }
+            ruleOptions.byweekday = [RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA, RRule.SU]
+          } else {
+            ruleOptions.byweekday = [RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR];
+          }
+        }
+
+        // For weekly option
+        if (ruleOptions.freq == RRule.WEEKLY) {
+          ruleOptions.interval = this.$.fieldWeeklyInterval.value || 1;
+          const byweekday = new Set();
+          const byweekdayMaps = {
+            'fieldWeeklyOnSun': RRule.SU,
+            'fieldWeeklyOnMon': RRule.MO,
+            'fieldWeeklyOnTue': RRule.TU,
+            'fieldWeeklyOnWed': RRule.WE,
+            'fieldWeeklyOnThu': RRule.TH,
+            'fieldWeeklyOnFri': RRule.FR,
+            'fieldWeeklyOnSat': RRule.SA
+          };
+
+          Object.keys(byweekdayMaps).forEach(fieldKey => {
+            if (this.$[fieldKey].checked) {
+              byweekday.add(byweekdayMaps[fieldKey]);
+            } else {
+              byweekday.delete(byweekdayMaps[fieldKey]);
+            }
+          })
+
+          if (byweekday.size > 0 ) {
+            ruleOptions.byweekday = Array.from(byweekday);
+          }
+        }
+
+        // For monthly option
+        if (ruleOptions.freq == RRule.MONTHLY) {
+          const monthInterval = +this.$.fieldMonthlyInterval.value || 1;
+          if (monthInterval > 1) {
+            ruleOptions.interval = monthInterval;
+          }
+          if (this.$.fieldMonthlyOption2.checked) {
+            const selected = this.$.fieldMonthlyMonthDays.querySelectorAll('option:checked');
+            const values = Array.from(selected).map((el) => +el.value);
+            ruleOptions.bymonthday = values;
+          }
+        }
+
+        // For yearly options
+        if (ruleOptions.freq == RRule.YEARLY) {
+          const yearInterval = +this.$.fieldYearlyInterval.value || 1;
+          if (yearInterval > 1) {
+            ruleOptions.interval = yearInterval;
+          }
+          if (this.$.fieldYearlyOption.checked) {
+            ruleOptions.bymonth = [+this.$.fieldYearlyEveryMonth.value];
+            ruleOptions.bymonthday = [+this.$.fieldYearlyEveryDay.value];
+          }
+          if (this.$.fieldYearlyWeeklyOption.checked) {
+            if (RRule[this.$.fieldYearlyWeeklyWkst.value]) {
+              ruleOptions.byweekday = RRule[this.$.fieldYearlyWeeklyWkst.value];
+            }
+            ruleOptions.bymonth = [+this.$.fieldYearlyWeeklyByMonth.value];
+          }
+        }
+
+        if (this.$.fieldUntilOption.checked && this.$.fieldUntil.value) {
+            ruleOptions.until = new Date(this.$.fieldUntil.value);
+        }
+
+        if (this.$.fieldAppointmentsOption.checked && this.$.fieldCount.value) {
+            const count = +this.$.fieldCount.value || 0;
+            if (count > 0) {
+              ruleOptions.count = count;
+            }
+        }
+
+
+        const rule = new RRule(ruleOptions)
+        this.dateHidden.value = rule.toString();
+        this.reccurendTxt.innerHTML = rule.toText();
+
+        if (this.env == 'DEV') {
+          this.set('rruleTxt',rule.toString());
+          this.set('rruleHumanTxt',rule.toText());
+        }
+
+        // rule.all() is taking too much memory
+        let i = 0;
+        this.rruleAll = rule.all(() => {
+          i = i + 1;
+          return i > 10 ? false : true;
+        });
+      }
+
+      changeReccurendType(type) {
+        if (type == 'daily') {
+          this.set('formDayVisibility', '');
+        } else {
+          this.set('formDayVisibility', 'hidden');
+        }
+
+        if (type == 'weekly') {
+          this.set('formWeekVisibility', '');
+        } else {
+          this.set('formWeekVisibility', 'hidden');
+        }
+
+        if (type == 'monthly') {
+          this.set('formMonthVisibility', '');
+        } else {
+          this.set('formMonthVisibility', 'hidden');
+        }
+
+        if (type == 'yearly') {
+          this.set('formYearVisibility', '');
+        } else {
+          this.set('formYearVisibility', 'hidden');
+        }
+
+        this.set('type', type);
+      }
+
+      initSlotInputs(effectiveChildren) {
+        const mapInputs = {
+          'date': 'date',
+          'date-hidden': 'dateHidden',
+          'date-reccurend': 'reccurend',
+          'date-reccurend-txt': 'reccurendTxt',
+        };
+
+        effectiveChildren.forEach((el) => {
+          if (!el.dataset) { return; }
+          if (mapInputs.hasOwnProperty(el.dataset.id)) {
+            return this[mapInputs[el.dataset.id]] = el;
+          }
+         });
+      }
+    }
+
+    window.customElements.define(RruleEditor.is, RruleEditor);
+  </script>
+</dom-module>
