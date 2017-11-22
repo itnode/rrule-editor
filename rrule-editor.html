@@ -67,7 +67,7 @@
     </style>
     <slot></slot>
 
-    <div class$="{{formVisibility}}">
+    <div class$="{{modalFormVisibility}}">
       <div class="modal">
         <div class="modal-content">
         <span id="closeModal" class="close">&times;</span>
@@ -97,13 +97,13 @@
               </p>
               <p>
                 On:
-                <span><input type="checkbox" id="fieldWeeklyOnSun" /> Sun </span>
-                <span><input type="checkbox" id="fieldWeeklyOnMon" /> Mon </span>
-                <span><input type="checkbox" id="fieldWeeklyOnTue" /> Tue </span>
-                <span><input type="checkbox" id="fieldWeeklyOnWed" /> Wed </span>
-                <span><input type="checkbox" id="fieldWeeklyOnThu" /> Thu </span>
-                <span><input type="checkbox" id="fieldWeeklyOnFri" /> Fri </span>
-                <span><input type="checkbox" id="fieldWeeklyOnSat" /> Sat </span>
+                <span><input type="checkbox" id="fieldWeeklyOnSU" /> Sun </span>
+                <span><input type="checkbox" id="fieldWeeklyOnMO" /> Mon </span>
+                <span><input type="checkbox" id="fieldWeeklyOnTU" /> Tue </span>
+                <span><input type="checkbox" id="fieldWeeklyOnWE" /> Wed </span>
+                <span><input type="checkbox" id="fieldWeeklyOnTH" /> Thu </span>
+                <span><input type="checkbox" id="fieldWeeklyOnFR" /> Fri </span>
+                <span><input type="checkbox" id="fieldWeeklyOnSA" /> Sat </span>
               </p>
             </div>
 
@@ -267,7 +267,7 @@
       static get is() { return 'rrule-editor'; }
       static get properties() {
         return {
-          formVisibility: {
+          modalFormVisibility: {
             type: String,
             value: 'hidden'
           }
@@ -304,11 +304,17 @@
         this.initSlotEvents();
       }
 
-      onInitSetFields() {
-        console.log(this.dateHidden.value);
-        let rrval = this.dateHidden.value;
+      static get freqMap() {
+        return {
+          '0': 'YEARLY',
+          '1': 'MONTHLY',
+          '2': 'WEEKLY',
+          '3': 'DAILY'
+        };
+      }
 
-        // create custom edit link attribute
+      // create custom edit link attribute
+      createCustomEditLink() {
         const a = document.createElement('a');
         a.className = 'link-edit-custom';
         a.style.marginLeft = '1rem';
@@ -317,30 +323,6 @@
         a.style.cursor = 'pointer';
         a.innerHTML = 'Edit custom rule';
         this.reccurend.after(a);
-
-        if (!rrval) {
-          this.reccurend.value = '';
-          return;
-        }
-
-        const rrSet = rrulestr(rrval);
-        const freqMap = {
-          '0': 'YEARLY',
-          '1': 'MONTHLY',
-          '2': 'WEEKLY',
-          '3': 'DAILY'
-        };
-
-        // set values other than 'custom';
-        if (Object.keys(rrSet.origOptions).length == 2
-          && rrSet.origOptions.hasOwnProperty('freq')
-          && rrSet.origOptions.hasOwnProperty('dtstart')
-        ) {
-          this.reccurend.value = freqMap[rrSet.origOptions.freq].toLowerCase();
-        } else { // set value into custom
-          this.reccurend.value = 'custom';
-          this.reccurend.nextSibling.style.display = 'inline';
-        }
       }
 
       initSlotEvents() {
@@ -356,20 +338,22 @@
           return;
         }
 
-        this.onInitSetFields();
-
+        this.createCustomEditLink();
         this.date.addEventListener('change', (e) => {
           this.changeAnything();
         });
 
-        const changeReccurendSlot = (val) => {
+        const changeReccurendSlot = (val, isEdit) => {
           if (val == 'custom') {
-            this.set('formVisibility' , '');
+            this.set('modalFormVisibility' , '');
             this.reccurend.nextSibling.style.display = 'inline';
-            this.$.fieldReccurend.value = 'daily';
-            this.changeReccurendType('daily');
+            if (isEdit) {
+              this.fillFormValues();
+            } else {
+              this.fillModalFormDefaultValues();
+            }
           } else {
-            this.set('formVisibility' , 'hidden');
+            this.set('modalFormVisibility' , 'hidden');
             this.reccurend.nextSibling.style.display = 'none';
           }
           this.changeAnything();
@@ -380,21 +364,20 @@
         });
 
         this.reccurend.nextSibling.addEventListener('click', (e) => {
-          changeReccurendSlot('custom');
+          changeReccurendSlot('custom', true);
         });
 
         this.$.fieldReccurend.addEventListener('change', (e) => {
-          this.changeReccurendType(e.target.value);
           this.changeAnything();
         });
 
         this.$.closeModal.addEventListener('click', (e) => {
-          this.set('formVisibility', 'hidden');
+          this.set('modalFormVisibility', 'hidden');
           this.reccurend.blur();
         });
 
         this.$.fieldOk.addEventListener('click', (e) => {
-          this.set('formVisibility', 'hidden');
+          this.set('modalFormVisibility', 'hidden');
           this.reccurend.blur();
         });
 
@@ -403,13 +386,13 @@
           'fieldDailyOption',
           'fieldDailyOption2',
           'fieldWeeklyInterval',
-          'fieldWeeklyOnSun',
-          'fieldWeeklyOnMon',
-          'fieldWeeklyOnTue',
-          'fieldWeeklyOnWed',
-          'fieldWeeklyOnThu',
-          'fieldWeeklyOnFri',
-          'fieldWeeklyOnSat',
+          'fieldWeeklyOnSU',
+          'fieldWeeklyOnMO',
+          'fieldWeeklyOnTU',
+          'fieldWeeklyOnWE',
+          'fieldWeeklyOnTH',
+          'fieldWeeklyOnFR',
+          'fieldWeeklyOnSA',
           'fieldMonthlyInterval',
           // 'fieldMonthlyOption',
           'fieldMonthlyOption2',
@@ -430,9 +413,12 @@
           this.$[str].addEventListener('change', (e) => {
             this.changeAnything();
           });
-        })
+        });
 
-        this.changeAnything()
+        // Pre fill form with sever data in hidden field
+        // Form modal will be hidden on initial load
+        this.fillFormValues();
+        this.set('modalFormVisibility' , 'hidden');
       }
 
       changeNonCustom() {
@@ -480,13 +466,13 @@
           ruleOptions.interval = this.$.fieldWeeklyInterval.value || 1;
           const byweekday = new Set();
           const byweekdayMaps = {
-            'fieldWeeklyOnSun': RRule.SU,
-            'fieldWeeklyOnMon': RRule.MO,
-            'fieldWeeklyOnTue': RRule.TU,
-            'fieldWeeklyOnWed': RRule.WE,
-            'fieldWeeklyOnThu': RRule.TH,
-            'fieldWeeklyOnFri': RRule.FR,
-            'fieldWeeklyOnSat': RRule.SA
+            'fieldWeeklyOnSU': RRule.SU,
+            'fieldWeeklyOnMO': RRule.MO,
+            'fieldWeeklyOnTU': RRule.TU,
+            'fieldWeeklyOnWE': RRule.WE,
+            'fieldWeeklyOnTH': RRule.TH,
+            'fieldWeeklyOnFR': RRule.FR,
+            'fieldWeeklyOnSA': RRule.SA
           };
 
           Object.keys(byweekdayMaps).forEach(fieldKey => {
@@ -562,28 +548,112 @@
         });
       }
 
-      changeReccurendType(type) {
+      fillFormValues() {
+        let rrval = this.dateHidden.value;
+        if (!rrval) {
+          this.reccurend.value = '';
+          return;
+        }
 
+        const rrSet = rrulestr(rrval);
+        let reccurendType;
+
+        // set values other than 'custom';
+        if (Object.keys(rrSet.origOptions).length == 2
+          && rrSet.origOptions.hasOwnProperty('freq')
+          && rrSet.origOptions.hasOwnProperty('dtstart')
+        ) {
+          this.reccurend.value = RruleEditor.freqMap[rrSet.origOptions.freq].toLowerCase();
+        } else { // set value into custom
+          this.reccurend.value = reccurendType = 'custom';
+          this.reccurend.nextSibling.style.display = 'inline';
+        }
+
+        // If custom type then fill the modal form values
+        if (reccurendType == 'custom') {
+          this.fillModalFormValues(rrSet);
+        }
+      }
+
+      // Fill default the modal form values on new custom event
+      fillModalFormDefaultValues() {
+        this.setModalReccTypeBlock('daily');
+        this.$.fieldDailyOption.checked = true;
+      }
+
+      // Refill the modal form values with custom rrstr txt values
+      fillModalFormValues(rrSet) {
+        const type = RruleEditor.freqMap[rrSet.origOptions.freq].toLowerCase();
+        const weekdayMap = {
+          0: 'MO',
+          1: 'TU',
+          2: 'WE',
+          3: 'TH',
+          4: 'FR',
+          5: 'SA',
+          6: 'SU'
+        };
+
+        this.setModalReccTypeBlock(type);
+
+        switch (type) {
+          case 'daily':
+            if (rrSet.origOptions.hasOwnProperty('interval')) {
+              this.$.fieldDailyInterval.value = rrSet.origOptions.interval;
+            }
+
+            if (
+              rrSet.origOptions.hasOwnProperty('byweekday')
+              && rrSet.origOptions.byweekday.length == 5
+            ) {
+              this.$.fieldDailyOption2.checked = true;
+            } else {
+              this.$.fieldDailyOption.checked = true;
+            }
+            break;
+          case 'weekly':
+
+            if (rrSet.origOptions.hasOwnProperty('interval')) {
+              this.$.fieldWeeklyInterval.value = rrSet.origOptions.interval;
+            }
+
+            if (rrSet.origOptions.hasOwnProperty('byweekday')) {
+              rrSet.origOptions.byweekday.forEach((dt) => {
+                const k = weekdayMap[dt.weekday];
+                if (this.$[`fieldWeeklyOn${k}`]) {
+                  this.$[`fieldWeeklyOn${k}`].checked = true;
+                }
+              })
+            }
+            break;
+        }
+      }
+
+      setModalReccTypeBlock(type) {
         if (type == 'daily') {
           this.set('formDayVisibility', '');
+          this.$.fieldReccurend.value = 'daily';
         } else {
           this.set('formDayVisibility', 'hidden');
         }
 
         if (type == 'weekly') {
           this.set('formWeekVisibility', '');
+          this.$.fieldReccurend.value = 'weekly';
         } else {
           this.set('formWeekVisibility', 'hidden');
         }
 
         if (type == 'monthly') {
           this.set('formMonthVisibility', '');
+          this.$.fieldReccurend.value = 'monthly';
         } else {
           this.set('formMonthVisibility', 'hidden');
         }
 
         if (type == 'yearly') {
           this.set('formYearVisibility', '');
+          this.$.fieldReccurend.value = 'yearly';
         } else {
           this.set('formYearVisibility', 'hidden');
         }
