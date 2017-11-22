@@ -229,14 +229,14 @@
               Create <input id="fieldCount" type="number" name="quantity" min="1" max="100" > Appointments
             </p>
             <p>
-              <input type="radio" id="fieldUntilOption" name="fieldOptionEndRange" /> Repeat until 
+              <input type="radio" id="fieldUntilOption" name="fieldOptionEndRange" /> Repeat until
               <input id="fieldUntil" type="date" />
             </p>
           </div>
         </div>
 
         <h4>Preview</h4>
-        <template is="dom-if" if="{{_isDev()}}">          
+        <template is="dom-if" if="{{_isDev()}}">
           <p>{{ rruleTxt }} </p>
           <p>{{ rruleHumanTxt }} </p>
         </template>
@@ -304,6 +304,45 @@
         this.initSlotEvents();
       }
 
+      onInitSetFields() {
+        console.log(this.dateHidden.value);
+        let rrval = this.dateHidden.value;
+
+        // create custom edit link attribute
+        const a = document.createElement('a');
+        a.className = 'link-edit-custom';
+        a.style.marginLeft = '1rem';
+        a.style.textDecoration = 'underline';
+        a.style.display = 'none';
+        a.style.cursor = 'pointer';
+        a.innerHTML = 'Edit custom rule';
+        this.reccurend.after(a);
+
+        if (!rrval) {
+          this.reccurend.value = '';
+          return;
+        }
+
+        const rrSet = rrulestr(rrval);
+        const freqMap = {
+          '0': 'YEARLY',
+          '1': 'MONTHLY',
+          '2': 'WEEKLY',
+          '3': 'DAILY'
+        };
+
+        // set values other than 'custom';
+        if (Object.keys(rrSet.origOptions).length == 2
+          && rrSet.origOptions.hasOwnProperty('freq')
+          && rrSet.origOptions.hasOwnProperty('dtstart')
+        ) {
+          this.reccurend.value = freqMap[rrSet.origOptions.freq].toLowerCase();
+        } else { // set value into custom
+          this.reccurend.value = 'custom';
+          this.reccurend.nextSibling.style.display = 'inline';
+        }
+      }
+
       initSlotEvents() {
         if (
           !(
@@ -317,6 +356,8 @@
           return;
         }
 
+        this.onInitSetFields();
+
         this.date.addEventListener('change', (e) => {
           this.changeAnything();
         });
@@ -324,10 +365,12 @@
         const changeReccurendSlot = (val) => {
           if (val == 'custom') {
             this.set('formVisibility' , '');
+            this.reccurend.nextSibling.style.display = 'inline';
             this.$.fieldReccurend.value = 'daily';
             this.changeReccurendType('daily');
           } else {
             this.set('formVisibility' , 'hidden');
+            this.reccurend.nextSibling.style.display = 'none';
           }
           this.changeAnything();
         }
@@ -335,8 +378,10 @@
         this.reccurend.addEventListener('change', (e) => {
           changeReccurendSlot(e.target.value);
         });
-        this.$.fieldReccurend.value = 'daily';
-        changeReccurendSlot(this.reccurend.value);
+
+        this.reccurend.nextSibling.addEventListener('click', (e) => {
+          changeReccurendSlot('custom');
+        });
 
         this.$.fieldReccurend.addEventListener('change', (e) => {
           this.changeReccurendType(e.target.value);
