@@ -113,8 +113,8 @@
               </p>
               <!--
               <p>
-                <label for="fieldYearlyOption">
-                  <input id="fieldMonthlyOption" type="radio" value="every" name="fieldMonthlyOption" checked />
+                <label for="fieldMonthlyMonthDayOption">
+                  <input id="fieldMonthlyMonthDayOption" type="radio" value="every" name="fieldMonthlyOption" checked />
                   <select>
                     <option>Every</option>
                     <option>The First</option>
@@ -143,9 +143,9 @@
                   <input id="fieldMonthlyOption2" type="radio" value="ondays" name="fieldMonthlyOption" checked /> Recur on day(s)
                   <select id="fieldMonthlyMonthDays" multiple>
                     <template is="dom-repeat" items="{{monthDays}}" as="type" >
-                      <option>{{type}}</option>
+                      <option value="{{type}}">{{type}}</option>
                     </template>
-                    <option>Last day</option>
+                    <option value="-1">Last day</option>
                   </select>
                 </label>
               </p>
@@ -156,8 +156,8 @@
                 Every: <input id="fieldYearlyInterval" type="number" name="quantity" min="1" value="1"> Years(s)
               </p>
               <p>
-                <input type="radio" id="fieldYearlyOption"  name="fieldYearlyOption" checked />
-                <label for="fieldYearlyOption">
+                <input type="radio" id="fieldYearlyMonthDayOption"  name="fieldYearlyOption" checked />
+                <label for="fieldYearlyMonthDayOption">
                   Every <input id="fieldYearlyEveryDay" type="number" name="quantity" min="1" value="1"> of
                   <select id="fieldYearlyEveryMonth">
                     <option value="1">January</option>
@@ -226,7 +226,7 @@
             </p>
             <p>
               <input type="radio" id="fieldAppointmentsOption"  name="fieldOptionEndRange" />
-              Create <input id="fieldCount" type="number" name="quantity" min="1" max="100" > Appointments
+              Create <input id="fieldUntilByCount" type="number" name="quantity" min="1" max="100" > Appointments
             </p>
             <p>
               <input type="radio" id="fieldUntilOption" name="fieldOptionEndRange" /> Repeat until
@@ -322,16 +322,16 @@
         a.style.display = 'none';
         a.style.cursor = 'pointer';
         a.innerHTML = 'Edit custom rule';
-        this.reccurend.after(a);
+        this.$.reccurend.after(a);
       }
 
       initSlotEvents() {
         if (
           !(
-            this.date
-            && this.dateHidden
-            && this.reccurend
-            && this.reccurendTxt
+            this.$.date
+            && this.$.dateHidden
+            && this.$.reccurend
+            && this.$.reccurendTxt
           )
         ) {
           console.info("Slot input not found!")
@@ -339,49 +339,39 @@
         }
 
         this.createCustomEditLink();
-        this.date.addEventListener('change', (e) => {
-          this.changeAnything();
-        });
 
-        const changeReccurendSlot = (val, isEdit) => {
-          if (val == 'custom') {
-            this.set('modalFormVisibility' , '');
-            this.reccurend.nextSibling.style.display = 'inline';
-            if (isEdit) {
-              this.fillFormValues();
-            } else {
-              this.fillModalFormDefaultValues();
-            }
-          } else {
-            this.set('modalFormVisibility' , 'hidden');
-            this.reccurend.nextSibling.style.display = 'none';
+        // On click on edit link
+        this.$.reccurend.addEventListener('change', (e) => {
+          if (e.target.value == 'custom') {
+            this.fillModalFormDefaultValues();
           }
-          this.changeAnything();
-        }
-
-        this.reccurend.addEventListener('change', (e) => {
-          changeReccurendSlot(e.target.value);
+          this.toggleModalForm();
+          this.updateRRule();
         });
 
-        this.reccurend.nextSibling.addEventListener('click', (e) => {
-          changeReccurendSlot('custom', true);
+        this.$.reccurend.nextSibling.addEventListener('click', (e) => {
+          this.fillFormValues();
+          this.toggleModalForm();
+          this.updateRRule();
         });
 
         this.$.fieldReccurend.addEventListener('change', (e) => {
-          this.changeAnything();
+          this.setModalReccTypeBlock(e.target.value);
         });
 
         this.$.closeModal.addEventListener('click', (e) => {
           this.set('modalFormVisibility', 'hidden');
-          this.reccurend.blur();
+          this.$.reccurend.blur();
         });
 
         this.$.fieldOk.addEventListener('click', (e) => {
           this.set('modalFormVisibility', 'hidden');
-          this.reccurend.blur();
+          this.$.reccurend.blur();
         });
 
         [
+          'date',
+          'fieldReccurend',
           'fieldDailyInterval',
           'fieldDailyOption',
           'fieldDailyOption2',
@@ -398,7 +388,7 @@
           'fieldMonthlyOption2',
           'fieldYearlyInterval',
           'fieldMonthlyMonthDays',
-          'fieldYearlyOption',
+          'fieldYearlyMonthDayOption',
           'fieldYearlyWeeklyOption',
           'fieldYearlyEveryDay',
           'fieldYearlyEveryMonth',
@@ -408,48 +398,65 @@
           'fieldAppointmentsOption',
           'fieldUntilOption',
           'fieldUntil',
-          'fieldCount'
+          'fieldUntilByCount'
         ].forEach((str) => {
           this.$[str].addEventListener('change', (e) => {
-            this.changeAnything();
+
+            console.log(e.target.value);
+            this.updateRRule();
           });
         });
 
         // Pre fill form with sever data in hidden field
         // Form modal will be hidden on initial load
         this.fillFormValues();
+        this.updateRRule();
         this.set('modalFormVisibility' , 'hidden');
       }
 
-      changeNonCustom() {
+      toggleModalForm() {
+        const type = this.$.reccurend.value;
+        if (type == 'custom') {
+          this.set('modalFormVisibility' , '');
+          this.$.reccurend.nextSibling.style.display = 'inline';
+        } else {
+          this.set('modalFormVisibility' , 'hidden');
+          this.$.reccurend.nextSibling.style.display = 'none';
+        }
+      }
+
+      _updateRRuleOfSlotForm() {
         // If no value is selected
-        if (this.reccurend.value === 'no') {
-          this.dateHidden.value = '';
-          this.reccurendTxt.innerHTML = '';
+        if (this.$.reccurend.value === 'no') {
+          this.$.dateHidden.value = '';
+          this.$.reccurendTxt.innerHTML = '';
           return;
         }
 
         const ruleOptions = {};
-        ruleOptions.freq = RRule[this.reccurend.value.toUpperCase()];
-        ruleOptions.dtstart = this.date.value ? new Date(this.date.value) : new Date();
+        if (this.$.reccurend.value) {
+          const date =  this.$.date.value ? new Date(this.$.date.value) : new Date();
 
-        const rule = new RRule(ruleOptions)
-        this.dateHidden.value = rule.toString();
-        this.reccurendTxt.innerHTML = rule.toText();
+          ruleOptions.freq = RRule[this.$.reccurend.value.toUpperCase()];
+          ruleOptions.dtstart = date;
+
+          const rule = new RRule(ruleOptions)
+          this.$.dateHidden.value = rule.toString();
+          this.$.reccurendTxt.innerHTML = rule.toText();
+        }
       }
 
-      changeAnything() {
-        if (this.reccurend.value !== 'custom') {
-          return this.changeNonCustom();
+      updateRRule() {
+        if (this.$.reccurend.value !== 'custom') {
+          return this._updateRRuleOfSlotForm();
         }
 
         const ruleOptions = {};
         ruleOptions.freq = RRule[this.type.toUpperCase()];
-        ruleOptions.dtstart = this.date.value ? new Date(this.date.value) : new Date();
+        ruleOptions.dtstart = this.$.date.value ? new Date(this.$.date.value) : new Date();
 
         // For daily option
         if (ruleOptions.freq == RRule.DAILY) {
-          // console.log(this.querySelector('input[name="fieldDailyOption"]:checked'));
           if (this.$.fieldDailyOption.checked) {
             const dailyInterval = +this.$.fieldDailyInterval.value || 1;
             if (dailyInterval > 1) {
@@ -463,7 +470,7 @@
 
         // For weekly option
         if (ruleOptions.freq == RRule.WEEKLY) {
-          ruleOptions.interval = this.$.fieldWeeklyInterval.value || 1;
+          ruleOptions.interval = +this.$.fieldWeeklyInterval.value || 1;
           const byweekday = new Set();
           const byweekdayMaps = {
             'fieldWeeklyOnSU': RRule.SU,
@@ -490,10 +497,7 @@
 
         // For monthly option
         if (ruleOptions.freq == RRule.MONTHLY) {
-          const monthInterval = +this.$.fieldMonthlyInterval.value || 1;
-          if (monthInterval > 1) {
-            ruleOptions.interval = monthInterval;
-          }
+          ruleOptions.interval = +this.$.fieldMonthlyInterval.value || 1;
           if (this.$.fieldMonthlyOption2.checked) {
             const selected = this.$.fieldMonthlyMonthDays.querySelectorAll('option:checked');
             const values = Array.from(selected).map((el) => +el.value);
@@ -503,11 +507,8 @@
 
         // For yearly options
         if (ruleOptions.freq == RRule.YEARLY) {
-          const yearInterval = +this.$.fieldYearlyInterval.value || 1;
-          if (yearInterval > 1) {
-            ruleOptions.interval = yearInterval;
-          }
-          if (this.$.fieldYearlyOption.checked) {
+          ruleOptions.interval = +this.$.fieldYearlyInterval.value || 1;
+          if (this.$.fieldYearlyMonthDayOption.checked) {
             ruleOptions.bymonth = [+this.$.fieldYearlyEveryMonth.value];
             ruleOptions.bymonthday = [+this.$.fieldYearlyEveryDay.value];
           }
@@ -523,8 +524,8 @@
             ruleOptions.until = new Date(this.$.fieldUntil.value);
         }
 
-        if (this.$.fieldAppointmentsOption.checked && this.$.fieldCount.value) {
-            const count = +this.$.fieldCount.value || 0;
+        if (this.$.fieldAppointmentsOption.checked && this.$.fieldUntilByCount.value) {
+            const count = +this.$.fieldUntilByCount.value || 0;
             if (count > 0) {
               ruleOptions.count = count;
             }
@@ -532,8 +533,8 @@
 
 
         const rule = new RRule(ruleOptions)
-        this.dateHidden.value = rule.toString();
-        this.reccurendTxt.innerHTML = rule.toText();
+        this.$.dateHidden.value = rule.toString();
+        this.$.reccurendTxt.innerHTML = rule.toText();
 
         if (this.env == 'DEV') {
           this.set('rruleTxt',rule.toString());
@@ -549,9 +550,9 @@
       }
 
       fillFormValues() {
-        let rrval = this.dateHidden.value;
+        let rrval = this.$.dateHidden.value;
         if (!rrval) {
-          this.reccurend.value = '';
+          this.$.reccurend.value = 'no';
           return;
         }
 
@@ -563,10 +564,10 @@
           && rrSet.origOptions.hasOwnProperty('freq')
           && rrSet.origOptions.hasOwnProperty('dtstart')
         ) {
-          this.reccurend.value = RruleEditor.freqMap[rrSet.origOptions.freq].toLowerCase();
+          this.$.reccurend.value = RruleEditor.freqMap[rrSet.origOptions.freq].toLowerCase();
         } else { // set value into custom
-          this.reccurend.value = reccurendType = 'custom';
-          this.reccurend.nextSibling.style.display = 'inline';
+          this.$.reccurend.value = reccurendType = 'custom';
+          this.$.reccurend.nextSibling.style.display = 'inline';
         }
 
         // If custom type then fill the modal form values
@@ -581,22 +582,36 @@
         this.$.fieldDailyOption.checked = true;
       }
 
+      // fill until fields
+      fillUntilFields(rrSet) {
+        if (rrSet.origOptions.hasOwnProperty('unitil')) {
+          this.$.fieldUntilOption.checked = true;
+          this.$.fieldUntil.value = rrSet.origOptions.until.toISOString().slice(0,10);
+        } else if (rrSet.origOptions.hasOwnProperty('count')) {
+          this.$.fieldAppointmentsOption.checked = true;
+          this.$.fieldUntilByCount.value = rrSet.origOptions.count;
+        }
+      }
+
       // Refill the modal form values with custom rrstr txt values
       fillModalFormValues(rrSet) {
         const type = RruleEditor.freqMap[rrSet.origOptions.freq].toLowerCase();
         const weekdayMap = {
-          0: 'MO',
-          1: 'TU',
-          2: 'WE',
-          3: 'TH',
-          4: 'FR',
-          5: 'SA',
-          6: 'SU'
+          '0': 'MO',
+          '1': 'TU',
+          '2': 'WE',
+          '3': 'TH',
+          '4': 'FR',
+          '5': 'SA',
+          '6': 'SU'
         };
 
+        this.$.date.value = rrSet.origOptions.dtstart.toISOString().slice(0,10);
         this.setModalReccTypeBlock(type);
+        this.fillUntilFields(rrSet);
 
         switch (type) {
+          // For daily fill daily form fields
           case 'daily':
             if (rrSet.origOptions.hasOwnProperty('interval')) {
               this.$.fieldDailyInterval.value = rrSet.origOptions.interval;
@@ -611,8 +626,9 @@
               this.$.fieldDailyOption.checked = true;
             }
             break;
-          case 'weekly':
 
+          // For weekly fill weekly form fields
+          case 'weekly':
             if (rrSet.origOptions.hasOwnProperty('interval')) {
               this.$.fieldWeeklyInterval.value = rrSet.origOptions.interval;
             }
@@ -626,6 +642,39 @@
               })
             }
             break;
+
+          // For monthly fill monthly form fields
+          case 'monthly':
+            if (rrSet.origOptions.hasOwnProperty('interval')) {
+              this.$.fieldMonthlyInterval.value = rrSet.origOptions.interval;
+            }
+
+            if (rrSet.origOptions.hasOwnProperty('bymonthday')) {
+              rrSet.origOptions.bymonthday.forEach((day) => {
+                const opt = this.$.fieldMonthlyMonthDays.querySelector(`option[value="${day}"]`);
+                if (opt) {
+                  opt.selected = true;
+                }
+              });
+            }
+
+          // For yearly fill yearly form fields
+          case 'yearly':
+            if (rrSet.origOptions.hasOwnProperty('interval')) {
+              this.$.fieldYearlyInterval.value = rrSet.origOptions.interval;
+            }
+
+            if (rrSet.origOptions.hasOwnProperty('bymonthday')) {
+              this.$.fieldYearlyMonthDayOption.checked = true;
+              this.$.fieldYearlyInterval.value = rrSet.origOptions.bymonth[0];
+              this.$.fieldYearlyInterval.value = rrSet.origOptions.bymonthday[0];
+            }
+
+            if (rrSet.origOptions.hasOwnProperty('byweekday')) {
+              this.$.fieldYearlyWeeklyOption.checked = true;
+              this.$.fieldYearlyWeeklyByMonth.value = rrSet.origOptions.bymonth[0];
+              this.$.fieldYearlyWeeklyWkst.value = rrSet.origOptions.byweekday[0];
+            }
         }
       }
 
@@ -672,7 +721,7 @@
         effectiveChildren.forEach((el) => {
           if (!el.dataset) { return; }
           if (mapInputs.hasOwnProperty(el.dataset.id)) {
-            return this[mapInputs[el.dataset.id]] = el;
+            return this.$[mapInputs[el.dataset.id]] = el;
           }
          });
       }
