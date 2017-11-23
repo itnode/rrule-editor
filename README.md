@@ -1,10 +1,10 @@
-# <rrule-editor>
+# &lt;rrule-editor /&gt;
 
 recurrence rules for calendar dates
 
 ## Install & Run
 
-First, make sure you have the [Polymer CLI](https://www.npmjs.com/package/polymer-cli) and [Bower](https://bower.io/#install-bower) installed. 
+First, make sure you have the [Polymer CLI](https://www.npmjs.com/package/polymer-cli) and [Bower](https://bower.io/#install-bower) installed.
 
 Then run following
 ```
@@ -34,5 +34,5 @@ The element in slot is find by `data-` selector, Please make sure those are in `
 </rrule-editor>
 ```
 
-These 4 selector should be present in element `data-id="date"`, 
+These 4 selector should be present in element `data-id="date"`,
 `data-id="date-reccurend"`, `data-id="date-hidden"`, `data-id="date-reccurend-txt"`
