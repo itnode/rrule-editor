@@ -1,0 +1,22 @@
+{
+  "name": "rrule-editor",
+  "version": "0.0.1",
+  "description": "Recurrence rules for calendar dates",
+  "main": "rrule-editor.html",
+  "scripts": {
+    "test": "eslint ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itnode/rrule-editor.git"
+  },
+  "author": "rab",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/itnode/rrule-editor/issues"
+  },
+  "homepage": "https://github.com/itnode/rrule-editor#readme",
+  "devDependencies": {
+    "eslint": "4.11.0"
+  }
+}
