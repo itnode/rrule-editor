@@ -343,7 +343,8 @@
         this.createCustomEditLink();
 
         const openModalAndPopulate = () => {
-          this.set('tmpOptions', Object.assign({}, this.origOptions));
+          let options = this.origOptions ? Object.assign({}, this.origOptions) : null;
+          this.set('tmpOptions', options);
           this.toggleModalForm();
           this.fillModalFormValues();
           this.calcCustomRRule();
@@ -637,6 +638,9 @@
           this.fillModalFormDefaultValues();
           return;
         }
+
+
+        console.log(this.tmpOptions);
 
         const tmpOptions = this.tmpOptions;
         const type = RruleEditor.freqMap[tmpOptions.freq].toLowerCase();
