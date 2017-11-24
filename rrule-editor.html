@@ -236,11 +236,6 @@
         </div>
 
         <h4>Preview</h4>
-        <template is="dom-if" if="{{_isDev()}}">
-          <p>{{ rruleTxt }} </p>
-          <p>{{ rruleHumanTxt }} </p>
-        </template>
-
         <p>Preview of next 10 occurance :
           <div>
             <template is="dom-repeat" items="{{rruleAll}}">
@@ -286,12 +281,19 @@
 
         this.type = 'daily';
         this.rruleAll = [];
-        this.rruleTxt = '';
-        this.rruleHumanTxt = '@@';
+
+        this.tmpRule = '';
+        this.tmpRuleTxt = '';
+        this.tmpOptions = null;
+        this.origOptions = null;
       }
 
       _isDev() {
         return this.env == 'DEV';
+      }
+
+      isVisibleModal() {
+        return this.modalFormVisibility != 'hidden';
       }
 
       connectedCallback() {
@@ -340,19 +342,29 @@
 
         this.createCustomEditLink();
 
+        const openModalAndPopulate = () => {
+          this.set('tmpOptions', Object.assign({}, this.origOptions));
+          this.toggleModalForm();
+          this.fillModalFormValues();
+          this.calcCustomRRule();
+        }
+
+        // On click on edit link
+        this.$.date.addEventListener('change', (e) => {
+          this.updateRRuleInSlotForm();
+        });
+
         // On click on edit link
         this.$.reccurend.addEventListener('change', (e) => {
-          if (e.target.value == 'custom') {
-            this.fillModalFormDefaultValues();
+          if (e.target.value != 'custom') {
+            this.updateRRuleInSlotForm();
+          } else {
+            openModalAndPopulate();
           }
-          this.toggleModalForm();
-          this.updateRRule();
         });
 
         this.$.reccurend.nextSibling.addEventListener('click', (e) => {
-          this.fillFormValues();
-          this.toggleModalForm();
-          this.updateRRule();
+          openModalAndPopulate();
         });
 
         this.$.fieldReccurend.addEventListener('change', (e) => {
@@ -361,16 +373,18 @@
 
         this.$.closeModal.addEventListener('click', (e) => {
           this.set('modalFormVisibility', 'hidden');
-          this.$.reccurend.blur();
+          this.resetRecurrentPullMenu();
         });
 
         this.$.fieldOk.addEventListener('click', (e) => {
           this.set('modalFormVisibility', 'hidden');
-          this.$.reccurend.blur();
+          this.$.dateHidden.value = this.tmpRule;
+          this.$.reccurendTxt.innerHTML = this.tmpRuleTxt;
+          this.set('origOptions', this.tmpOptions);
+          this.resetRecurrentPullMenu();
         });
 
         [
-          'date',
           'fieldReccurend',
           'fieldDailyInterval',
           'fieldDailyOption',
@@ -401,17 +415,13 @@
           'fieldUntilByCount'
         ].forEach((str) => {
           this.$[str].addEventListener('change', (e) => {
-
-            console.log(e.target.value);
-            this.updateRRule();
+            this.calcCustomRRule();
           });
         });
 
         // Pre fill form with sever data in hidden field
         // Form modal will be hidden on initial load
-        this.fillFormValues();
-        this.updateRRule();
-        this.set('modalFormVisibility' , 'hidden');
+        this.initialize();
       }
 
       toggleModalForm() {
@@ -425,32 +435,52 @@
         }
       }
 
-      _updateRRuleOfSlotForm() {
+      resetHiddenAndRRuleText() {
+        const ruleOptions = Object.assign({}, this.origOptions);
+        if (!ruleOptions.dtstart) {
+          ruleOptions.dtstart = new Date();
+        }
+
+        const rule = new RRule(ruleOptions);
+        this.$.dateHidden.value = rule.toString();
+        this.$.reccurendTxt.innerHTML = rule.toText();
+      }
+
+      updateRRuleInSlotForm() {
         // If no value is selected
         if (this.$.reccurend.value === 'no') {
           this.$.dateHidden.value = '';
           this.$.reccurendTxt.innerHTML = '';
+          this.$.reccurend.nextSibling.style.display = 'none';
+          this.set('origOptions', null);
           return;
         }
 
-        const ruleOptions = {};
-        if (this.$.reccurend.value) {
-          const date =  this.$.date.value ? new Date(this.$.date.value) : new Date();
-
-          ruleOptions.freq = RRule[this.$.reccurend.value.toUpperCase()];
-          ruleOptions.dtstart = date;
-
-          const rule = new RRule(ruleOptions)
-          this.$.dateHidden.value = rule.toString();
-          this.$.reccurendTxt.innerHTML = rule.toText();
+        let ruleOptions;
+        if (!this.origOptions) {
+          ruleOptions = {};
+        } else {
+          ruleOptions = Object.assign({}, this.origOptions);
         }
+
+        let freq = RRule[this.$.reccurend.value.toUpperCase()];
+
+        // other than custom, reset options
+        if (freq !== undefined) {
+          ruleOptions = {};
+        }
+
+        ruleOptions.dtstart = this.$.date.value ? new Date(this.$.date.value) : null;
+        if (freq !== undefined) {
+          ruleOptions.freq = freq;
+        }
+
+        this.set('origOptions', ruleOptions);
+        this.resetRecurrentPullMenu();
+        this.resetHiddenAndRRuleText();
       }
 
-      updateRRule() {
-        if (this.$.reccurend.value !== 'custom') {
-          return this._updateRRuleOfSlotForm();
-        }
-
+      calcCustomRRule() {
         const ruleOptions = {};
         ruleOptions.freq = RRule[this.type.toUpperCase()];
         ruleOptions.dtstart = this.$.date.value ? new Date(this.$.date.value) : new Date();
@@ -462,7 +492,6 @@
             if (dailyInterval > 1) {
               ruleOptions.interval = dailyInterval;
             }
-            ruleOptions.byweekday = [RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA, RRule.SU]
           } else {
             ruleOptions.byweekday = [RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR];
           }
@@ -470,7 +499,10 @@
 
         // For weekly option
         if (ruleOptions.freq == RRule.WEEKLY) {
-          ruleOptions.interval = +this.$.fieldWeeklyInterval.value || 1;
+          const interval = +this.$.fieldWeeklyInterval.value || 1;
+          if (interval > 1) {
+            ruleOptions.interval = interval;
+          }
           const byweekday = new Set();
           const byweekdayMaps = {
             'fieldWeeklyOnSU': RRule.SU,
@@ -497,17 +529,26 @@
 
         // For monthly option
         if (ruleOptions.freq == RRule.MONTHLY) {
-          ruleOptions.interval = +this.$.fieldMonthlyInterval.value || 1;
+          const interval = +this.$.fieldMonthlyInterval.value || 1;
+          if (interval > 1) {
+            ruleOptions.interval = interval;
+          }
           if (this.$.fieldMonthlyOption2.checked) {
             const selected = this.$.fieldMonthlyMonthDays.querySelectorAll('option:checked');
             const values = Array.from(selected).map((el) => +el.value);
-            ruleOptions.bymonthday = values;
+
+            if (values.length) {
+              ruleOptions.bymonthday = values;
+            }
           }
         }
 
         // For yearly options
         if (ruleOptions.freq == RRule.YEARLY) {
-          ruleOptions.interval = +this.$.fieldYearlyInterval.value || 1;
+          const interval = +this.$.fieldYearlyInterval.value || 1;
+          if (interval > 1) {
+            ruleOptions.interval = +this.$.fieldYearlyInterval.value || 1;
+          }
           if (this.$.fieldYearlyMonthDayOption.checked) {
             ruleOptions.bymonth = [+this.$.fieldYearlyEveryMonth.value];
             ruleOptions.bymonthday = [+this.$.fieldYearlyEveryDay.value];
@@ -531,15 +572,17 @@
             }
         }
 
+        this.renderDisplay(ruleOptions);
+      }
 
-        const rule = new RRule(ruleOptions)
-        this.$.dateHidden.value = rule.toString();
-        this.$.reccurendTxt.innerHTML = rule.toText();
+      renderDisplay(ruleOptions) {
+        const rule = new RRule(Object.assign({}, ruleOptions));
+        const rruleStr = rule.toString();
+        const rruleTxt = rule.toText();
 
-        if (this.env == 'DEV') {
-          this.set('rruleTxt',rule.toString());
-          this.set('rruleHumanTxt',rule.toText());
-        }
+        this.set('tmpRule', rruleStr);
+        this.set('tmpRuleTxt', rruleTxt);
+        this.set('tmpOptions', ruleOptions);
 
         // rule.all() is taking too much memory
         let i = 0;
@@ -549,31 +592,37 @@
         });
       }
 
-      fillFormValues() {
-        let rrval = this.$.dateHidden.value;
-        if (!rrval) {
+      resetRecurrentPullMenu() {
+        const options = this.origOptions;
+        if (!options) {
           this.$.reccurend.value = 'no';
+        } else if (Object.keys(options).length == 2
+          && options.hasOwnProperty('freq')
+          && options.hasOwnProperty('dtstart')
+        ) {
+          this.$.reccurend.value = RruleEditor.freqMap[options.freq].toLowerCase();
+        } else { // set value into custom
+          this.$.reccurend.value = 'custom';
+        }
+        this.$.reccurend.nextSibling.style.display = this.$.reccurend.value == 'custom' ? 'inline' : 'none';
+      }
+
+      initialize() {
+        let rrval = this.$.dateHidden.value;
+        let rrSet = rrval ? rrulestr(rrval) : null;
+
+        if (!rrSet) {
+          this.resetRecurrentPullMenu();
           return;
         }
 
-        const rrSet = rrulestr(rrval);
-        let reccurendType;
+        this.set('origOptions', rrSet.origOptions);
+        const rule = new RRule(rrSet.origOptions);
 
-        // set values other than 'custom';
-        if (Object.keys(rrSet.origOptions).length == 2
-          && rrSet.origOptions.hasOwnProperty('freq')
-          && rrSet.origOptions.hasOwnProperty('dtstart')
-        ) {
-          this.$.reccurend.value = RruleEditor.freqMap[rrSet.origOptions.freq].toLowerCase();
-        } else { // set value into custom
-          this.$.reccurend.value = reccurendType = 'custom';
-          this.$.reccurend.nextSibling.style.display = 'inline';
-        }
-
-        // If custom type then fill the modal form values
-        if (reccurendType == 'custom') {
-          this.fillModalFormValues(rrSet);
-        }
+        this.$.date.value = rrSet.origOptions.dtstart.toISOString().slice(0,10);
+        this.$.reccurendTxt.innerHTML = rule.toText();
+        this.resetRecurrentPullMenu();
+        this.set('modalFormVisibility' , 'hidden');
       }
 
       // Fill default the modal form values on new custom event
@@ -582,20 +631,15 @@
         this.$.fieldDailyOption.checked = true;
       }
 
-      // fill until fields
-      fillUntilFields(rrSet) {
-        if (rrSet.origOptions.hasOwnProperty('unitil')) {
-          this.$.fieldUntilOption.checked = true;
-          this.$.fieldUntil.value = rrSet.origOptions.until.toISOString().slice(0,10);
-        } else if (rrSet.origOptions.hasOwnProperty('count')) {
-          this.$.fieldAppointmentsOption.checked = true;
-          this.$.fieldUntilByCount.value = rrSet.origOptions.count;
-        }
-      }
-
       // Refill the modal form values with custom rrstr txt values
-      fillModalFormValues(rrSet) {
-        const type = RruleEditor.freqMap[rrSet.origOptions.freq].toLowerCase();
+      fillModalFormValues() {
+        if (!this.tmpOptions) {
+          this.fillModalFormDefaultValues();
+          return;
+        }
+
+        const tmpOptions = this.tmpOptions;
+        const type = RruleEditor.freqMap[tmpOptions.freq].toLowerCase();
         const weekdayMap = {
           '0': 'MO',
           '1': 'TU',
@@ -606,20 +650,31 @@
           '6': 'SU'
         };
 
-        this.$.date.value = rrSet.origOptions.dtstart.toISOString().slice(0,10);
         this.setModalReccTypeBlock(type);
-        this.fillUntilFields(rrSet);
+
+        // fill until form
+        if (
+          tmpOptions.hasOwnProperty('until')
+          && tmpOptions.until instanceof Date
+        ) {
+          this.$.fieldUntilOption.checked = true;
+          this.$.fieldUntil.value = tmpOptions.until.toISOString().slice(0,10);
+        } else if (tmpOptions.hasOwnProperty('count')) {
+          this.$.fieldAppointmentsOption.checked = true;
+          this.$.fieldUntilByCount.value = tmpOptions.count;
+        }
 
         switch (type) {
           // For daily fill daily form fields
           case 'daily':
-            if (rrSet.origOptions.hasOwnProperty('interval')) {
-              this.$.fieldDailyInterval.value = rrSet.origOptions.interval;
+            if (tmpOptions.hasOwnProperty('interval')) {
+              this.$.fieldDailyInterval.value = tmpOptions.interval;
             }
 
             if (
-              rrSet.origOptions.hasOwnProperty('byweekday')
-              && rrSet.origOptions.byweekday.length == 5
+              tmpOptions.hasOwnProperty('byweekday')
+              && Array.isArray(tmpOptions.byweekday)
+              && tmpOptions.byweekday.length == 5
             ) {
               this.$.fieldDailyOption2.checked = true;
             } else {
@@ -629,13 +684,22 @@
 
           // For weekly fill weekly form fields
           case 'weekly':
-            if (rrSet.origOptions.hasOwnProperty('interval')) {
-              this.$.fieldWeeklyInterval.value = rrSet.origOptions.interval;
+            if (tmpOptions.hasOwnProperty('interval')) {
+              this.$.fieldWeeklyInterval.value = tmpOptions.interval;
             }
 
-            if (rrSet.origOptions.hasOwnProperty('byweekday')) {
-              rrSet.origOptions.byweekday.forEach((dt) => {
-                const k = weekdayMap[dt.weekday];
+            // reset byweekday
+            Object.keys(weekdayMap).forEach(k => {
+              this.$[`fieldWeeklyOn${weekdayMap[k]}`].checked = false;
+            });
+
+            if (
+              tmpOptions.hasOwnProperty('byweekday')
+              && Array.isArray(tmpOptions.byweekday)
+            ) {
+              tmpOptions.byweekday.forEach((dt) => {
+                dt = typeof dt == 'object' ? dt.weekday : dt;
+                const k = weekdayMap[dt];
                 if (this.$[`fieldWeeklyOn${k}`]) {
                   this.$[`fieldWeeklyOn${k}`].checked = true;
                 }
@@ -645,12 +709,20 @@
 
           // For monthly fill monthly form fields
           case 'monthly':
-            if (rrSet.origOptions.hasOwnProperty('interval')) {
-              this.$.fieldMonthlyInterval.value = rrSet.origOptions.interval;
+            if (tmpOptions.hasOwnProperty('interval')) {
+              this.$.fieldMonthlyInterval.value = tmpOptions.interval;
             }
 
-            if (rrSet.origOptions.hasOwnProperty('bymonthday')) {
-              rrSet.origOptions.bymonthday.forEach((day) => {
+            // reset all bymonthday
+            [...this.$.fieldMonthlyMonthDays.querySelectorAll(`option`)].forEach((option) => {
+              option.selected = false;
+            });
+
+            if (
+              tmpOptions.hasOwnProperty('bymonthday')
+              && Array.isArray(tmpOptions.bymonthday)
+            ) {
+              tmpOptions.bymonthday.forEach((day) => {
                 const opt = this.$.fieldMonthlyMonthDays.querySelector(`option[value="${day}"]`);
                 if (opt) {
                   opt.selected = true;
@@ -661,20 +733,30 @@
 
           // For yearly fill yearly form fields
           case 'yearly':
-            if (rrSet.origOptions.hasOwnProperty('interval')) {
-              this.$.fieldYearlyInterval.value = rrSet.origOptions.interval;
+            if (tmpOptions.hasOwnProperty('interval')) {
+              this.$.fieldYearlyInterval.value = tmpOptions.interval;
+            } else {
+              this.$.fieldYearlyInterval.value = 1;
             }
 
-            if (rrSet.origOptions.hasOwnProperty('bymonthday')) {
+            if (tmpOptions.hasOwnProperty('bymonthday')) {
               this.$.fieldYearlyMonthDayOption.checked = true;
-              this.$.fieldYearlyInterval.value = rrSet.origOptions.bymonth[0];
-              this.$.fieldYearlyInterval.value = rrSet.origOptions.bymonthday[0];
+              if (Array.isArray(tmpOptions.bymonth) && tmpOptions.bymonth[0] !== undefined) {
+                this.$.fieldYearlyEveryMonth.value = tmpOptions.bymonth[0];
+              }
+              if (Array.isArray(tmpOptions.bymonthday) && tmpOptions.bymonthday[0] !== undefined) {
+                this.$.fieldYearlyEveryDay.value = tmpOptions.bymonthday[0];
+              }
             }
 
-            if (rrSet.origOptions.hasOwnProperty('byweekday')) {
+            if (tmpOptions.hasOwnProperty('byweekday') && Array.isArray(tmpOptions.byweekday)) {
               this.$.fieldYearlyWeeklyOption.checked = true;
-              this.$.fieldYearlyWeeklyByMonth.value = rrSet.origOptions.bymonth[0];
-              this.$.fieldYearlyWeeklyWkst.value = rrSet.origOptions.byweekday[0];
+              if (Array.isArray(tmpOptions.bymonth) && tmpOptions.bymonth[0] !== undefined) {
+                this.$.fieldYearlyWeeklyByMonth.value = tmpOptions.bymonth[0];
+              }
+              if (Array.isArray(tmpOptions.byweekday) && tmpOptions.byweekday[0] !== undefined) {
+                this.$.fieldYearlyWeeklyWkst.selectedIndex = tmpOptions.byweekday[0];
+              }
             }
             break;
         }
