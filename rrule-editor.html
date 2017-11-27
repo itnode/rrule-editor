@@ -332,7 +332,7 @@
         a.style.display = 'none';
         a.style.cursor = 'pointer';
         a.innerHTML = 'Edit custom rule';
-        this.$.reccurend.after(a);
+        this.$.reccurend.parentNode.insertBefore(a, this.$.reccurend.nextSibling);
       }
 
       initSlotEvents() {
