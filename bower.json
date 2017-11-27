@@ -4,7 +4,6 @@
   "main": "rrule-editor.html",
   "dependencies": {
     "polymer": "Polymer/polymer#^2.0.0",
-    "pf-calendar": "PFElements/pf-calendar#^0.3.0",
     "rrule": "^2.2.0",
     "paper-spinner": "PolymerElements/paper-spinner#^2.0.0"
   },
