@@ -1,5 +1,6 @@
 <link rel="import" href="../polymer/polymer-element.html">
 <link rel="import" href="../pf-calendar/pf-calendar.html">
+<link rel="import" href="../paper-spinner/paper-spinner-lite.html">
 <script type="text/javascript" src="../rrule/lib/rrule.js" charset="utf-8"></script>
 <script type="text/javascript" src="../rrule/lib/nlp.js" charset="utf-8"></script>
 
@@ -238,8 +239,14 @@
         <h4>Preview</h4>
         <p>Preview of next 10 occurance :
           <div>
-            <template is="dom-repeat" items="{{rruleAll}}">
-              <div class="badge">{{ item }}</div>
+            <template is="dom-if" if="{{isLoadingRuleAll}}">
+              <paper-spinner-lite active class="orange"></paper-spinner-lite>
+            </template>
+
+            <template is="dom-if" if="{{!isLoadingRuleAll}}">
+              <template is="dom-repeat" items="{{rruleAll}}">
+                <div class="badge">{{ item }}</div>
+              </template>
             </template>
           </div>
         </p>
@@ -286,6 +293,8 @@
         this.tmpRuleTxt = '';
         this.tmpOptions = null;
         this.origOptions = null;
+
+        this.isLoadingRuleAll = true;
       }
 
       _isDev() {
@@ -482,6 +491,12 @@
       }
 
       calcCustomRRule() {
+        this.set('isLoadingRuleAll', true);
+        this._calcCustomRRule();
+        this.set('isLoadingRuleAll', false);
+      }
+
+      _calcCustomRRule() {
         const ruleOptions = {};
         ruleOptions.freq = RRule[this.type.toUpperCase()];
         ruleOptions.dtstart = this.$.date.value ? new Date(this.$.date.value) : new Date();
@@ -638,9 +653,6 @@
           this.fillModalFormDefaultValues();
           return;
         }
-
-
-        console.log(this.tmpOptions);
 
         const tmpOptions = this.tmpOptions;
         const type = RruleEditor.freqMap[tmpOptions.freq].toLowerCase();
